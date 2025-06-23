@@ -12,6 +12,7 @@ function list_available_versions() {
 # --
 
 function populate_sysext_root() {
+  set -x
   local sysextroot="$1"
   local arch="$2"
   local version="$3"
