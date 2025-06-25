@@ -99,6 +99,49 @@ function _create_sysupdate() {
 }
 # --
 
+function _sign_sysext() {
+  FS_IMAGE=$(readlink -f "$1")
+  OUTPUT_IMAGE="$2"
+
+  # Create temporary working directory
+  WORKDIR=$(mktemp -d)
+  trap 'rm -rf "$WORKDIR"' RETURN
+
+  # Create repart.d layout
+  mkdir -p "$WORKDIR/repart.d"
+
+  cat > "$WORKDIR/repart.d/10-root.conf" <<EOF
+[Partition]
+Type=root
+Verity=data
+VerityMatchKey=root
+CopyBlocks=$FS_IMAGE
+EOF
+
+  # Optionally add verity partition
+  cat > "$WORKDIR/repart.d/20-verity.conf" <<EOF
+[Partition]
+Type=root-verity
+Verity=hash
+VerityMatchKey=root
+Minimize=best
+EOF
+
+  # Optionally add signature partition
+  cat > "$WORKDIR/repart.d/30-signature.conf" <<EOF
+[Partition]
+Type=root-verity-sig
+Verity=signature
+VerityMatchKey=root
+EOF
+
+  # Run systemd-repart
+  systemd-repart --empty=create --size=auto --private-key=sysext.key --certificate=sysext.crt --definitions="${WORKDIR}/repart.d" "$OUTPUT_IMAGE"
+
+  echo "Signed sysext created: $OUTPUT_IMAGE"
+}
+# --
+
 function _generate_sysext() {
   local extname="$1"
   local basedir="$2"
@@ -109,21 +152,24 @@ function _generate_sysext() {
   announce "Creating extension image '${fname}' and generating SHA256SUM"
   case "$format" in
     btrfs)
-      mkfs.btrfs --mixed -m single -d single --shrink --rootdir "${basedir}" "${fname}"
+      mkfs.btrfs --mixed -m single -d single --shrink --rootdir "${basedir}" "${fname}.unsigned"
       ;;
     ext2|ext4)
-      truncate -s "${ext_fs_size}" "${fname}"
-      mkfs."${format}" -E root_owner=0:0 -d "${basedir}" "${fname}"
-      resize2fs -M "${fname}"
+      truncate -s "${ext_fs_size}" "${fname}.unsigned"
+      mkfs."${format}" -E root_owner=0:0 -d "${basedir}" "${fname}.unsigned"
+      resize2fs -M "${fname}.unsigned"
       ;;
     squashfs)
-      mksquashfs "${basedir}" "${fname}" -all-root -noappend -xattrs-exclude '^btrfs.'
+      mksquashfs "${basedir}" "${fname}.unsigned" -all-root -noappend -xattrs-exclude '^btrfs.'
       ;;
     erofs)
-      mkfs.erofs "${fname}" "${basedir}"
+      mkfs.erofs "${fname}.unsigned" "${basedir}"
       ;;
-
   esac
+
+  _sign_sysext "${fname}.unsigned" "${fname}"
+  rm -f "${fname}.unsigned"
+
   sha256sum "${fname}" > "SHA256SUMS.${extname}"
   announce "'${fname}' is now ready"
 }
