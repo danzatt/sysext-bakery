@@ -41,10 +41,10 @@ RUN git clone https://github.com/jepio/azure-keyvault-pkcs11.git /tmp/pkcs11 && 
 FROM ${IMAGE}
 # dependencies for signing (PKCS11) and building sysexts
 RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y \
-    libcurl4 p11-kit libjson-c5 sudo curl systemd-repart \
-    libengine-pkcs11-openssl \
-    apt-transport-https ca-certificates curl software-properties-common \
-    ca-certificates apt-transport-https lsb-release gnupg
+    apt-transport-https build-essential ca-certificates curl g++ gcc \
+    gnupg libcurl4 libengine-pkcs11-openssl libjson-c5 lsb-release make \
+    p11-kit pkg-config software-properties-common sudo systemd-repart \
+    unzip
 
 # preinstall sysext-bakery dependencies to speed up jobs
 RUN DEBIAN_FRONTEND=noninteractive apt-get install -y \
