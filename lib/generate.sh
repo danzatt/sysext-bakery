@@ -99,9 +99,10 @@ function _create_sysupdate() {
 }
 # --
 
-function _sign_sysext() {
-  FS_IMAGE=$(readlink -f "$1")
+function _generate_signed_sysext() {
+  BASEDIR="$1"
   OUTPUT_IMAGE="$2"
+  FS_FORMAT="$3"
 
   # Create temporary working directory
   WORKDIR=$(mktemp -d)
@@ -113,9 +114,12 @@ function _sign_sysext() {
   cat > "$WORKDIR/repart.d/10-root.conf" <<EOF
 [Partition]
 Type=root
+Format=$FS_FORMAT
+CopyFiles=/usr/
+CopyFiles=/opt/
 Verity=data
 VerityMatchKey=root
-CopyBlocks=$FS_IMAGE
+Minimize=best
 EOF
 
   # Optionally add verity partition
@@ -136,7 +140,14 @@ VerityMatchKey=root
 EOF
 
   # Run systemd-repart
-  systemd-repart --empty=create --size=auto --private-key=sysext.key --certificate=sysext.crt --definitions="${WORKDIR}/repart.d" "$OUTPUT_IMAGE"
+  systemd-repart \
+    --empty=create \
+    --size=auto \
+    --private-key=sysext.key \
+    --certificate=sysext.crt \
+    --definitions="${WORKDIR}/repart.d" \
+    --copy-source="$BASEDIR" \
+    "$OUTPUT_IMAGE"
 
   echo "Signed sysext created: $OUTPUT_IMAGE"
 }
@@ -150,25 +161,14 @@ function _generate_sysext() {
   local fname="$5"
 
   announce "Creating extension image '${fname}' and generating SHA256SUM"
-  case "$format" in
-    btrfs)
-      mkfs.btrfs --mixed -m single -d single --shrink --rootdir "${basedir}" "${fname}.unsigned"
-      ;;
-    ext2|ext4)
-      truncate -s "${ext_fs_size}" "${fname}.unsigned"
-      mkfs."${format}" -E root_owner=0:0 -d "${basedir}" "${fname}.unsigned"
-      resize2fs -M "${fname}.unsigned"
-      ;;
-    squashfs)
-      mksquashfs "${basedir}" "${fname}.unsigned" -all-root -noappend -xattrs-exclude '^btrfs.'
-      ;;
-    erofs)
-      mkfs.erofs "${fname}.unsigned" "${basedir}"
-      ;;
-  esac
+  (
+    export SYSTEMD_REPART_MKFS_OPTIONS_BTRFS="--mixed -m single -d single --shrink"
+    export SYSTEMD_REPART_MKFS_OPTIONS_EXT2="-E root_owner=0:0"
+    export SYSTEMD_REPART_MKFS_OPTIONS_EXT4="$SYSTEMD_REPART_MKFS_OPTIONS_EXT2"
+    export SYSTEMD_REPART_MKFS_OPTIONS_SQUASHFS="-all-root -noappend -xattrs-exclude '^btrfs.'"
 
-  _sign_sysext "${fname}.unsigned" "${fname}"
-  rm -f "${fname}.unsigned"
+    _generate_signed_sysext "${basedir}" "${fname}" "$format"
+  )
 
   sha256sum "${fname}" > "SHA256SUMS.${extname}"
   announce "'${fname}' is now ready"

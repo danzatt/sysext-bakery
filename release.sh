@@ -29,7 +29,7 @@ out "Built $(date --rfc-3339 seconds)"
 for arch in x86-64 arm64; do
   target="${extension}-${version}-${arch}"
   out "## \`${target}.raw\`"
-  ./bakery.sh create "${extension}" "${version}" --arch "${arch}" --sysupdate true --output-file "${target}" 2>&1 \
+  ./bakery.sh create "${extension}" "${version}" --format erofs --arch "${arch}" --sysupdate true --output-file "${target}" 2>&1 \
     | tee "${extension}-${version}-${arch}-build.log"
   cat SHA256SUMS."${extension}" >> SHA256SUMS
 done
