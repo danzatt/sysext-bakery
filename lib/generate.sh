@@ -108,20 +108,51 @@ function _generate_signed_sysext() {
   WORKDIR=$(mktemp -d)
   trap 'rm -rf "$WORKDIR"' RETURN
 
-  cp -r "/usr/lib/systemd/repart/definitions/sysext.repart.d/" "$WORKDIR"
+  cp -r "${libroot}/sysext.repart.d/" "$WORKDIR"
   sed -Ei "s/^Format=erofs/Format=${FS_FORMAT}/" "$WORKDIR/sysext.repart.d/10-root.conf"
 
-  # Run systemd-repart
-  systemd-repart \
+  PKCS_TOKEN_NAME="pkcs11:token=${KEYVAULT_CERT_NAME}"
+  PKCS11_ENV=(
+      AZURE_KEYVAULT_URL="https://${KEYVAULT_NAME}.vault.azure.net/"
+      PKCS11_MODULE_PATH="${PKCS11_MODULE_PATH:-/usr/local/lib/pkcs11/azure-keyvault-pkcs11.so}"
+      AZURE_KEYVAULT_PKCS11_DEBUG=1
+  )
+
+  CERT_CONTENT=$(az keyvault certificate download \
+    --vault-name "$KEYVAULT_NAME" \
+    --name "${KEYVAULT_CERT_NAME}" \
+    --file /dev/stdout)
+
+  env "${PKCS11_ENV[@]}" systemd-repart \
     --empty=create \
     --size=auto \
-    --private-key=sysext.key \
-    --certificate=sysext.crt \
+    --private-key-source=engine:pkcs11 \
+    --private-key="$PKCS_TOKEN_NAME" \
+    --certificate=<(echo "$CERT_CONTENT") \
     --definitions="${WORKDIR}/sysext.repart.d" \
     --copy-source="$BASEDIR" \
     "$OUTPUT_IMAGE"
 
   echo "Signed sysext created: $OUTPUT_IMAGE"
+}
+
+function _generate_unsigned_sysext() {
+  case "$format" in
+    btrfs)
+      mkfs.btrfs --mixed -m single -d single --shrink --rootdir "${basedir}" "${fname}"
+      ;;
+    ext2|ext4)
+      truncate -s "${ext_fs_size}" "${fname}"
+      mkfs."${format}" -E root_owner=0:0 -d "${basedir}" "${fname}"
+      resize2fs -M "${fname}"
+      ;;
+    squashfs)
+      mksquashfs "${basedir}" "${fname}" -all-root -noappend -xattrs-exclude '^btrfs.'
+      ;;
+    erofs)
+      mkfs.erofs "${fname}" "${basedir}"
+      ;;
+  esac
 }
 # --
 
@@ -131,6 +162,11 @@ function _generate_sysext() {
   local format="$3"
   local ext_fs_size="$4"
   local fname="$5"
+  local signed_ddi="$6"
+
+  if [[ ${signed_ddi} == true ]] ; then
+    extname="${extname}-signed-ddi"
+  fi
 
   announce "Creating extension image '${fname}' and generating SHA256SUM"
   (
@@ -139,7 +175,27 @@ function _generate_sysext() {
     export SYSTEMD_REPART_MKFS_OPTIONS_EXT4="$SYSTEMD_REPART_MKFS_OPTIONS_EXT2"
     export SYSTEMD_REPART_MKFS_OPTIONS_SQUASHFS="-all-root -noappend -xattrs-exclude '^btrfs.'"
 
-    _generate_signed_sysext "${basedir}" "${fname}" "$format"
+    if [[ ${signed_ddi} == true ]] ; then
+      _generate_signed_sysext "${basedir}" "${fname}" "$format"
+    else
+      options_varname="SYSTEMD_REPART_MKFS_OPTIONS_${format^^}"
+      case "$format" in
+        btrfs)
+          mkfs.btrfs ${!options_varname} --rootdir "${basedir}" "${fname}"
+          ;;
+        ext2|ext4)
+          truncate -s "${ext_fs_size}" "${fname}"
+          mkfs."${format}" ${!options_varname} -d "${basedir}" "${fname}"
+          resize2fs -M "${fname}"
+          ;;
+        squashfs)
+          mksquashfs "${basedir}" "${fname}" ${!options_varname}
+          ;;
+        erofs)
+          mkfs.erofs "${fname}" "${basedir}"
+          ;;
+      esac
+    fi
   )
 
   sha256sum "${fname}" > "SHA256SUMS.${extname}"
@@ -201,6 +257,8 @@ function generate_sysext() {
   local basedir="$(get_positional_param "1" "${@}")"
   local arch="$(get_positional_param "2" "${@}")"
 
+  local signed_ddi="$(get_optional_param "signed-ddi" "false" "${@}")"
+
   if [[ -z ${basedir} ]] || [[ ${basedir} == help ]] ; then
     _generate_sysext_help
     exit
@@ -213,17 +271,28 @@ function generate_sysext() {
 
   local name="$(get_optional_param "name" "$(cd "$basedir"; basename "$(pwd)")" "${@}")"
   local fname="$(get_optional_param "output-file" "${name}" "${@}")"
-  fname="${fname%%.raw}.raw"
+  fname="${fname%%.raw}"
+  if [[ ${signed_ddi} == true ]] ; then
+    fname="${fname}-signed-ddi"
+  fi
+  fname="${fname}.raw"
   rm -f "${fname}"
 
   export SOURCE_DATE_EPOCH
 
   _create_metadata "$name" "$basedir" "$os" "$arch" "$reload_services"
-  _generate_sysext "$name" "$basedir" "$format" "$ext_fs_size" "${fname}"
+  _generate_sysext "$name" "$basedir" "$format" "$ext_fs_size" "${fname}" "$signed_ddi"
 
   local sysupdate="$(get_optional_param "sysupdate" "false" "${@}")"
   if [[ ${sysupdate} == true ]] ; then
-    _create_sysupdate "${name}"
+    local config_name=""
+    local match_pattern=""
+    if [[ ${signed_ddi} == true ]] ; then
+      config_name="${name}-signed-ddi.conf"
+      match_pattern="${name}-@v-%a-signed-ddi.raw"
+    fi
+
+    _create_sysupdate "${name}" "$match_pattern" "" "" "${config_name}"
   fi
 }
 # --

@@ -56,9 +56,15 @@ jobs:
     continue-on-error: true 
 
     runs-on: ubuntu-24.04
+    container:
+      image: ghcr.io/danzatt/ubuntu-keyvault-pkcs11-token:main
+      options: --privileged
+      volumes:
+        - /var/run/docker.sock:/var/run/docker.sock
     permissions:
       # allow the action to create a release
       contents: write
+      id-token: write
     steps:
       - name: Set up qemu / binmft misc for cross-platform builds
         uses: docker/setup-qemu-action@v3
@@ -80,14 +86,21 @@ jobs:
             xz-utils \
             erofs-utils
 
+      - name: Azure Login
+        uses: azure/login@v1
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
       - name: build
         id: build
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          KEYVAULT_NAME: ${{ secrets.KEYVAULT_NAME }}
+          KEYVAULT_CERT_NAME: ${{ secrets.KEYVAULT_CERT_NAME }}
         run: |
-          pushd bakery
-          echo "${{ secrets.SYSEXT_PRIVATE_KEY }}" > sysext.key
-          echo "${{ secrets.SYSEXT_CERTIFICATE }}" > sysext.crt
+          cd bakery
           ./release.sh ${{ matrix.release }}
 
       - name: create a new release
