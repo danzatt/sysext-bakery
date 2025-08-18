@@ -56,10 +56,32 @@ jobs:
     continue-on-error: true 
 
     runs-on: ubuntu-24.04
+    container:
+      image: fedora:latest
+      options: --privileged
+      volumes:
+        - /var/run/docker.sock:/var/run/docker.sock
     permissions:
       # allow the action to create a release
       contents: write
     steps:
+      - name: install prerequisites
+        run: |
+          set -euxo pipefail
+
+          dnf update -y
+          dnf install -y moby-engine
+          echo "Running 'docker info' to test connection to host daemon..."
+          docker info
+
+          sudo dnf install -y \
+            curl \
+            jq \
+            squashfs-tools \
+            xz \
+            erofs-utils
+
+          cat /etc/os-release
       - name: Set up qemu / binmft misc for cross-platform builds
         uses: docker/setup-qemu-action@v3
 
@@ -68,26 +90,12 @@ jobs:
         with:
           ref: ${{ inputs.branch != '' && inputs.branch || 'main' }}
           path: bakery
-
-      - name: install prerequisites
-        run: |
-          set -euxo pipefail
-
-          sudo apt update -qq && sudo apt install -yqq \
-            curl \
-            jq \
-            squashfs-tools \
-            xz-utils \
-            erofs-utils
-
       - name: build
         id: build
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           pushd bakery
-          echo "${{ secrets.SYSEXT_PRIVATE_KEY }}" > sysext.key
-          echo "${{ secrets.SYSEXT_CERTIFICATE }}" > sysext.crt
           ./release.sh ${{ matrix.release }}
 
       - name: create a new release
