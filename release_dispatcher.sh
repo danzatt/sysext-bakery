@@ -21,7 +21,7 @@ mapfile -t images < <( sed -e 's:\s*#.*::' -e 's/[[:space:]]*$//' -e '/^$/d' rel
 builds=()
 extensions=()
 
-for image in "${images[@]}"; do
+for image in "wasmtime"; do
   extension="${image% *}"
   version="${image#* }"
 
@@ -31,7 +31,7 @@ for image in "${images[@]}"; do
   fi
 
   build_required="false"
-  for v in "${version[@]}"; do
+  for v in "v35.0.0"; do
     echo -n "*  ${extension} ${v}: "
 
     if github_release_exists "${bakery%/*}" "${bakery#*/}" "${extension}-${v}"; then
