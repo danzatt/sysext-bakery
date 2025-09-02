@@ -19,7 +19,7 @@ RUN apt-get update && \
 # RUN rustup toolchain install stable
 
 RUN git clone https://github.com/Azure/azure-sdk-for-cpp /tmp/sdk && \
-  git -C /tmp/sdk checkout -f 800b05fc3022395d4243833a1087963300da36e9 && \
+  git -C /tmp/sdk checkout -f e102895c1fd240d557f10876a3a5e33fea711de1 && \
   AZURE_SDK_DISABLE_AUTO_VCPKG=1 cmake -S /tmp/sdk -B /tmp/build \
     -GNinja \
     -DCMAKE_BUILD_TYPE=Release \
