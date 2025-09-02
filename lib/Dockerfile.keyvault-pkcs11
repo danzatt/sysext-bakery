@@ -32,7 +32,7 @@ RUN git clone https://github.com/Azure/azure-sdk-for-cpp /tmp/sdk && \
 
 FROM development AS final
 RUN git clone https://github.com/jepio/azure-keyvault-pkcs11.git /tmp/pkcs11 && \
-  git -C /tmp/pkcs11 checkout -f 126ae2bc714f2867b6628b49962f388c4b314f5f && \
+  git -C /tmp/pkcs11 checkout -f e102895c1fd240d557f10876a3a5e33fea711de1 && \
   cmake -S /tmp/pkcs11 -B /build -GNinja -DCMAKE_BUILD_TYPE=Release && \
   cmake --build /build -- -v && \
   cmake --install /build && \
