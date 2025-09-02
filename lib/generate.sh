@@ -120,6 +120,11 @@ function _generate_signed_sysext() {
       AZURE_KEYVAULT_URL="https://${KEYVAULT_NAME}.vault.azure.net/"
       PKCS11_MODULE_PATH="${PKCS11_MODULE_PATH:-/usr/local/lib/pkcs11/azure-keyvault-pkcs11.so}"
       AZURE_KEYVAULT_PKCS11_DEBUG=1
+
+      AZURE_FEDERATED_TOKEN_FILE="$AZURE_FEDERATED_TOKEN_FILE"
+      AZURE_CLIENT_ID="$AZURE_CLIENT_ID"
+      AZURE_TENANT_ID="$AZURE_TENANT_ID"
+      AZURE_SUBSCRIPTION_ID="$AZURE_SUBSCRIPTION_ID"
   )
 
   # Check if PRE_SIGN_HOOK_SCRIPT is set and not empty
@@ -130,10 +135,8 @@ function _generate_signed_sysext() {
           echo "No pre-sign hook: $PRE_SIGN_HOOK_SCRIPT"
   fi
 
-  CERT_CONTENT=$(az keyvault certificate download \
-    --vault-name "$KEYVAULT_NAME" \
-    --name "${KEYVAULT_CERT_NAME}" \
-    --file /dev/stdout)
+  CERT_CONTENT=$(env "${PKCS11_ENV[@]}" p11-kit \
+      export-object "${PKCS_TOKEN_NAME};type=cert")
 
   env "${PKCS11_ENV[@]}" systemd-repart \
     --empty=create \
