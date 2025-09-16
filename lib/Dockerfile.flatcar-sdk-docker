@@ -1,5 +1,6 @@
-#FROM ghcr.io/flatcar/flatcar-sdk-amd64:4426.0.0 AS development
-FROM ghcr.io/flatcar/flatcar-sdk-all:KEYVAULT_IDENTITY
+# syntax=docker/dockerfile:1.4-labs
+#FROM ghcr.io/flatcar/flatcar-sdk-all:9999.0.3-danzatt-pkcs11-workload-identity
+FROM flatcar-sdk-all
 
 WORKDIR /tmp
 #RUN source /etc/os-release && curl https://alpha.release.flatcar-linux.net/amd64-usr/${VERSION}/rootfs-included-sysexts/docker-flatcar.raw -O
@@ -8,3 +9,13 @@ RUN curl https://alpha.release.flatcar-linux.net/amd64-usr/${VERSION}/rootfs-inc
 RUN sudo unsquashfs -no-xattrs /tmp/docker-flatcar.raw
 RUN sudo rsync -aHAX squashfs-root/ /
 RUN rm -rf *
+
+RUN git -C /tmp clone --depth=1 https://github.com/flatcar/scripts.git -b danzatt/sign-sysexts-nopatch
+RUN rm -rf /mnt/host/source
+RUN mkdir -p /tmp/scripts/__build__/images
+
+RUN ln -s /tmp/scripts/sdk_container /mnt/host/source
+RUN ln -s /tmp/scripts/__build__/images /mnt/host/source/src/build
+RUN ln -s /tmp/scripts/ /mnt/host/source/src/scripts
+
+RUN --security=insecure su sdk /mnt/host/source/src/scripts/update_chroot
