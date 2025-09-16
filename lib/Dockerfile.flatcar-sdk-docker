@@ -1,0 +1,23 @@
+# syntax=docker/dockerfile:1.4-labs
+FROM ghcr.io/danzatt/flatcar-sdk-all-nightly
+
+WORKDIR /tmp
+RUN source /etc/os-release && curl https://alpha.release.flatcar-linux.net/amd64-usr/${VERSION}/rootfs-included-sysexts/docker-flatcar.raw -O
+
+RUN source /etc/os-release && \
+    curl -O https://bincache.flatcar-linux.net/images/amd64/${VERSION}/rootfs-included-sysexts/docker-flatcar.raw
+# ENV VERSION="current"
+# RUN curl https://alpha.release.flatcar-linux.net/amd64-usr/${VERSION}/rootfs-included-sysexts/docker-flatcar.raw -O
+RUN sudo unsquashfs -no-xattrs /tmp/docker-flatcar.raw
+RUN sudo rsync -aHAX squashfs-root/ /
+RUN rm -rf *
+
+RUN git -C /tmp clone --depth=1 https://github.com/flatcar/scripts.git -b danzatt/sign-sysexts-nopatch
+RUN rm -rf /mnt/host/source
+RUN mkdir -p /tmp/scripts/__build__/images
+
+RUN ln -s /tmp/scripts/sdk_container /mnt/host/source
+RUN ln -s /tmp/scripts/__build__/images /mnt/host/source/src/build
+RUN ln -s /tmp/scripts/ /mnt/host/source/src/scripts
+
+RUN --security=insecure su sdk /mnt/host/source/src/scripts/update_chroot
