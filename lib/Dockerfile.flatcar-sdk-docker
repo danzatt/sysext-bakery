@@ -1,0 +1,10 @@
+#FROM ghcr.io/flatcar/flatcar-sdk-amd64:4426.0.0 AS development
+FROM ghcr.io/flatcar/flatcar-sdk-all:KEYVAULT_IDENTITY
+
+WORKDIR /tmp
+#RUN source /etc/os-release && curl https://alpha.release.flatcar-linux.net/amd64-usr/${VERSION}/rootfs-included-sysexts/docker-flatcar.raw -O
+ENV VERSION="current"
+RUN curl https://alpha.release.flatcar-linux.net/amd64-usr/${VERSION}/rootfs-included-sysexts/docker-flatcar.raw -O
+RUN sudo unsquashfs -no-xattrs /tmp/docker-flatcar.raw
+RUN sudo rsync -aHAX squashfs-root/ /
+RUN rm -rf *
