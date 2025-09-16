@@ -118,7 +118,7 @@ function _generate_signed_sysext() {
   PKCS_TOKEN_NAME="pkcs11:token=${KEYVAULT_CERT_NAME}"
   PKCS11_ENV=(
       AZURE_KEYVAULT_URL="https://${KEYVAULT_NAME}.vault.azure.net/"
-      PKCS11_MODULE_PATH="${PKCS11_MODULE_PATH:-/usr/local/lib/pkcs11/azure-keyvault-pkcs11.so}"
+      PKCS11_MODULE_PATH="${PKCS11_MODULE_PATH:-/usr/lib64/pkcs11/azure-keyvault-pkcs11.so}"
       AZURE_KEYVAULT_PKCS11_DEBUG=1
 
       AZURE_FEDERATED_TOKEN_FILE="$AZURE_FEDERATED_TOKEN_FILE"
@@ -136,7 +136,7 @@ function _generate_signed_sysext() {
   fi
 
   CERT_CONTENT=$(env "${PKCS11_ENV[@]}" p11-kit \
-      export-object "${PKCS_TOKEN_NAME};type=cert")
+      export-object "${PKCS_TOKEN_NAME};type=cert" -v)
 
   env "${PKCS11_ENV[@]}" systemd-repart \
     --empty=create \

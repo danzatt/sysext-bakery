@@ -57,7 +57,8 @@ jobs:
 
     runs-on: ubuntu-24.04
     container:
-      image: ghcr.io/danzatt/ubuntu-keyvault-pkcs11-token:main
+      #image: ghcr.io/danzatt/ubuntu-keyvault-pkcs11-token:main
+      image: ghcr.io/danzatt/flatcar-sdk-docker:main
       options: >-
         --privileged
         -v ${{ github.workspace }}:${{ github.workspace }}
@@ -70,8 +71,8 @@ jobs:
       contents: write
       id-token: write
     steps:
-      - name: Set up qemu / binmft misc for cross-platform builds
-        uses: docker/setup-qemu-action@v3
+      # - name: Set up qemu / binmft misc for cross-platform builds
+      #   uses: docker/setup-qemu-action@v3
 
       - name: Check out the bakery repo
         uses: actions/checkout@v4
@@ -79,16 +80,16 @@ jobs:
           ref: ${{ inputs.branch != '' && inputs.branch || 'main' }}
           path: bakery
 
-      - name: install prerequisites
-        run: |
-          set -euxo pipefail
+      # - name: install prerequisites
+      #   run: |
+      #     set -euxo pipefail
 
-          sudo apt update -qq && sudo apt install -yqq \
-            curl \
-            jq \
-            squashfs-tools \
-            xz-utils \
-            erofs-utils
+      #     sudo apt update -qq && sudo apt install -yqq \
+      #       curl \
+      #       jq \
+      #       squashfs-tools \
+      #       xz-utils \
+      #       erofs-utils
 
       - name: Set AZURE_FEDERATED_TOKEN_FILE
         run: echo "AZURE_FEDERATED_TOKEN_FILE=/tmp/azure-oidc-token" >> $GITHUB_ENV
@@ -98,6 +99,14 @@ jobs:
         run: echo "AZURE_TENANT_ID=${{ secrets.AZURE_TENANT_ID }}" >> $GITHUB_ENV
       - name: Set AZURE_SUBSCRIPTION_ID
         run: echo "AZURE_SUBSCRIPTION_ID=${{ secrets.AZURE_SUBSCRIPTION_ID }}" >> $GITHUB_ENV
+
+      - name: Set up pre-sign hook to refresh token
+        shell: bash
+        run: |
+          mkdir -p /etc/pkcs11/modules
+          touch /etc/pkcs11/pkcs11.conf
+          echo "module: /usr/lib64/pkcs11/azure-keyvault-pkcs11.so" > /etc/pkcs11/modules/azure-keyvault-pkcs11.module
+          echo "critical: yes" >> /etc/pkcs11/modules/azure-keyvault-pkcs11.module
 
       - name: Set up pre-sign hook to refresh token
         shell: bash
