@@ -1,6 +1,5 @@
 # syntax=docker/dockerfile:1.4-labs
-#FROM ghcr.io/flatcar/flatcar-sdk-all:9999.0.3-danzatt-pkcs11-workload-identity
-FROM flatcar-sdk-all
+FROM ghcr.io/danzatt/flatcar-sdk-all-nightly
 
 WORKDIR /tmp
 #RUN source /etc/os-release && curl https://alpha.release.flatcar-linux.net/amd64-usr/${VERSION}/rootfs-included-sysexts/docker-flatcar.raw -O
