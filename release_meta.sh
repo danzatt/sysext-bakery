@@ -10,6 +10,7 @@
 # If $1 is empty, we update the global SHA256SUMS covering all releases.
 
 set -euo pipefail
+set -x
 cd "$(dirname "$0")"
 source "lib/libbakery.sh"
 
