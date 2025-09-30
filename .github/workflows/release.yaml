@@ -59,6 +59,7 @@ jobs:
     permissions:
       # allow the action to create a release
       contents: write
+      id-token: write
     steps:
       - name: Set up qemu / binmft misc for cross-platform builds
         uses: docker/setup-qemu-action@v3
@@ -82,11 +83,40 @@ jobs:
 
       - name: build
         id: build
+        shell: bash
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          KEYVAULT_CERT_NAME: ${{ secrets.KEYVAULT_CERT_NAME }}
+          AZURE_KEYVAULT_URL: https://${{ secrets.KEYVAULT_NAME }}.vault.azure.net/
+
+          AZURE_FEDERATED_TOKEN_FILE: /tmp/azure-oidc-token
+          AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
+          AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
+          AZURE_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+          AZURE_LOG_LEVEL: verbose
+          AZURE_KEYVAULT_PKCS11_DEBUG: 1
         run: |
           pushd bakery
           ./release.sh ${{ matrix.release }}
+
+          export AZURE_FEDERATED_TOKEN_FILE="/tmp/azure-oidc-token"
+          export AZURE_CLIENT_ID="${{ secrets.AZURE_CLIENT_ID }}"
+          export AZURE_TENANT_ID="${{ secrets.AZURE_TENANT_ID }}"
+          export AZURE_SUBSCRIPTION_ID="${{ secrets.AZURE_SUBSCRIPTION_ID }}"
+
+          export AZURE_LOG_LEVEL=verbose
+          export AZURE_KEYVAULT_PKCS11_DEBUG=1
+
+          echo "Obtaining OIDC token..."
+          token=$(curl -sSL \
+            -H "Authorization: Bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" \
+            "${ACTIONS_ID_TOKEN_REQUEST_URL}&audience=api://AzureADTokenExchange" \
+            | jq -r '.value')
+          echo "$token" > "$AZURE_FEDERATED_TOKEN_FILE"
+
+          ./flatcar-container-wrap.sh ghcr.io/flatcar/flatcar-sdk-all:4426.0.0 \
+            su -m sdk -c \
+            './setup_scripts_repo.sh && ./sign_sysext.sh ${{ matrix.release }} pkcs11:token=${{ secrets.KEYVAULT_CERT_NAME }}'
 
       - name: create a new release
         uses: softprops/action-gh-release@v2
