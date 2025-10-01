@@ -74,6 +74,10 @@ function sign_sysext() {
    "$OUTPUT_IMAGE"
 }
 
+echo "Token file:"
+ls "$AZURE_FEDERATED_TOKEN_FILE"
+wc -c < "$AZURE_FEDERATED_TOKEN_FILE"
+
 if [[ "$#" -lt 2 || "$#" -gt 3 ]]; then
     usage
 fi
