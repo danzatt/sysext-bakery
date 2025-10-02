@@ -117,7 +117,7 @@ jobs:
 
           ./flatcar-container-wrap.sh ghcr.io/danzatt/flatcar-sdk-docker:main  \
             su -m sdk -c \
-            './setup_scripts_repo.sh && ./sign_sysext.sh ${{ matrix.release }} pkcs11:token=${{ secrets.KEYVAULT_CERT_NAME }}'
+            './setup_scripts_repo.sh && sudo -E ./sign_sysext.sh ${{ matrix.release }} pkcs11:token=${{ secrets.KEYVAULT_CERT_NAME }}'
 
       - name: create a new release
         uses: softprops/action-gh-release@v2

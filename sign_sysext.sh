@@ -62,12 +62,12 @@ function sign_sysext() {
   cat ${REPART_CONFIG_PATH}/10-root.conf
 
   env | grep AZURE
-  p11-kit export-object "$CERT_SPEC" > /tmp/sysext.crt
+  CERT_CONTENT=$(p11-kit export-object "$CERT_SPEC")
 
   PKCS11_ENV=(
     AZURE_KEYVAULT_URL="$AZURE_KEYVAULT_URL"
-    PKCS11_MODULE_PATH="${PKCS11_MODULE_PATH:-/usr/lib64/pkcs11/azure-keyvault-pkcs11.so}"
     AZURE_KEYVAULT_PKCS11_DEBUG=1
+    PKCS11_MODULE_PATH="${PKCS11_MODULE_PATH:-/usr/lib64/pkcs11/azure-keyvault-pkcs11.so}"
 
     AZURE_FEDERATED_TOKEN_FILE="$AZURE_FEDERATED_TOKEN_FILE"
     AZURE_CLIENT_ID="$AZURE_CLIENT_ID"
@@ -75,12 +75,12 @@ function sign_sysext() {
     AZURE_SUBSCRIPTION_ID="$AZURE_SUBSCRIPTION_ID"
   )
 
-  sudo env "${PKCS11_ENV[@]}" systemd-repart \
+  env "${PKCS11_ENV[@]}" systemd-repart \
     --empty=create \
     --size=auto \
     --private-key-source=engine:pkcs11 \
     --private-key="$KEY_SPEC" \
-    --certificate=/tmp/sysext.crt \
+    --certificate=<(echo "$CERT_CONTENT") \
     --definitions="$REPART_CONFIG_PATH" \
    "$OUTPUT_IMAGE"
 }
@@ -111,5 +111,5 @@ done
 
 for conf_file in "$SYSEXT_NAME"*.conf; do
   echo "Modifying sysupdate config $conf_file"
-  sed -E 's/^(MatchPattern.*)\.raw/\1-signed-ddi.raw/g' < "$conf_file" | sudo tee "${conf_file%.conf}-signed-ddi.conf"
+  sed -E 's/^(MatchPattern.*)\.raw/\1-signed-ddi.raw/g' > "${conf_file%.conf}-signed-ddi.conf" < "$conf_file"
 done
