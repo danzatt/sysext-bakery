@@ -95,6 +95,7 @@ jobs:
           AZURE_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
           AZURE_LOG_LEVEL: verbose
           AZURE_KEYVAULT_PKCS11_DEBUG: 1
+          PKCS11_MODULE_PATH: /usr/lib64/pkcs11/azure-keyvault-pkcs11.so
         run: |
           pushd bakery
           ./release.sh ${{ matrix.release }}
@@ -114,7 +115,7 @@ jobs:
             | jq -r '.value')
           echo "$token" > "$AZURE_FEDERATED_TOKEN_FILE"
 
-          ./flatcar-container-wrap.sh ghcr.io/flatcar/flatcar-sdk-all:4426.0.0 \
+          ./flatcar-container-wrap.sh ghcr.io/danzatt/flatcar-sdk-docker:main  \
             su -m sdk -c \
             './setup_scripts_repo.sh && ./sign_sysext.sh ${{ matrix.release }} pkcs11:token=${{ secrets.KEYVAULT_CERT_NAME }}'
 
