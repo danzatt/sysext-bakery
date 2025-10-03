@@ -7,8 +7,7 @@ sudo mkdir -p /tmp/scripts/__build__/images
 sudo ln -s /tmp/scripts/sdk_container /mnt/host/source
 sudo ln -s /tmp/scripts/__build__/images /mnt/host/source/src/build
 sudo ln -s /tmp/scripts/ /mnt/host/source/src/scripts
-sudo emerge -U systemd
-sudo emerge -U azure-keyvault-pkcs11
+sudo emerge systemd azure-keyvault-pkcs11
 
 sudo touch /etc/pkcs11/pkcs11.conf
 echo "module: /usr/lib64/pkcs11/azure-keyvault-pkcs11.so" | sudo tee /etc/pkcs11/modules/azure-keyvault-pkcs11.module

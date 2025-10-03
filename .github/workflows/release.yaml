@@ -79,7 +79,8 @@ jobs:
             jq \
             squashfs-tools \
             xz-utils \
-            erofs-utils
+            erofs-utils \
+            skopeo
 
       - name: build
         id: build
@@ -108,16 +109,14 @@ jobs:
           export AZURE_LOG_LEVEL=verbose
           export AZURE_KEYVAULT_PKCS11_DEBUG=1
 
-          echo "Obtaining OIDC token..."
-          token=$(curl -sSL \
-            -H "Authorization: Bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" \
-            "${ACTIONS_ID_TOKEN_REQUEST_URL}&audience=api://AzureADTokenExchange" \
-            | jq -r '.value')
-          echo "$token" > "$AZURE_FEDERATED_TOKEN_FILE"
+          # echo "Obtaining OIDC token..."
+          # token=$(curl -sSL \
+          #   -H "Authorization: Bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" \
+          #   "${ACTIONS_ID_TOKEN_REQUEST_URL}&audience=api://AzureADTokenExchange" \
+          #   | jq -r '.value')
+          # echo "$token" > "$AZURE_FEDERATED_TOKEN_FILE"
 
-          ./flatcar-container-wrap.sh ghcr.io/danzatt/flatcar-sdk-docker:main  \
-            su -m sdk -c \
-            './setup_scripts_repo.sh && sudo -E ./sign_sysext.sh ${{ matrix.release }} pkcs11:token=${{ secrets.KEYVAULT_CERT_NAME }}'
+          ./flatcar-container-wrap.sh ./setup_scripts_repo.sh && ./sign_sysext_keyvault.sh ${{ matrix.release }} ${{ secrets.KEYVAULT_CERT_NAME }}
 
       - name: create a new release
         uses: softprops/action-gh-release@v2

@@ -1,9 +1,10 @@
 #!/bin/bash
 
-CONTAINER_IMAGE=$1
-shift
+FLATCAR_SDK_CONTAINER="ghcr.io/flatcar/flatcar-sdk-all"
+LATEST_FLATCAR_SDK_VERSION=$(skopeo list-tags docker://${FLATCAR_SDK_CONTAINER} | \
+   jq -r '.Tags[]' | grep -E '^[0-9]+\.[0-9]+\.[0-9]+$' | sort -V | tail -n1)
 
-ARGS=("--rm" "--volume" "/tmp:/tmp" "--volume" "$PWD:/app" --entrypoint "" --workdir "/app" "--privileged")
+ARGS=("--rm" "--volume" "/tmp:/tmp" "--volume" "$PWD:/app" --entrypoint "" --workdir "/app" "--privileged" "--user" "sdk")
 # Extra "sh -c" is needed to only export the exported variables
 for VARNAME in $(bash -c 'compgen -v | grep -vE "(DIRSTACK|HOME|HOSTNAME|LOGNAME|MAIL|OLDPWD|PATH|PWD|USER|USERNAME|XDG_DATA_DIRS|BASH|EPOCH|RANDOM)"'); do
   set +u
@@ -12,7 +13,4 @@ for VARNAME in $(bash -c 'compgen -v | grep -vE "(DIRSTACK|HOME|HOSTNAME|LOGNAME
   ARGS+=("--env" "${VARNAME}=${VAL}")
 done
 
-# echo "${ARGS[@]}"
-# sudo docker run "${ARGS[@]}" --entrypoint "" "$CONTAINER_IMAGE" env
-
-docker run "${ARGS[@]}" "$CONTAINER_IMAGE" "$@"
+docker run "${ARGS[@]}" "${FLATCAR_SDK_CONTAINER}:$LATEST_FLATCAR_SDK_VERSION" "$@"
