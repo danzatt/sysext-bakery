@@ -116,7 +116,7 @@ jobs:
           #   | jq -r '.value')
           # echo "$token" > "$AZURE_FEDERATED_TOKEN_FILE"
 
-          ./flatcar-container-wrap.sh ./setup_scripts_repo.sh && ./sign_sysext_keyvault.sh ${{ matrix.release }} ${{ secrets.KEYVAULT_CERT_NAME }}
+          ./flatcar-container-wrap.sh "./setup_scripts_repo.sh && ./sign_sysext_keyvault.sh ${{ matrix.release }} ${{ secrets.KEYVAULT_CERT_NAME }}"
 
       - name: create a new release
         uses: softprops/action-gh-release@v2
