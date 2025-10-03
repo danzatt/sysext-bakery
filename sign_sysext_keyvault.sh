@@ -1,5 +1,7 @@
 #!/bin/bash
 
+set -x
+
 SYSEXT_NAME="$1"
 KEYVAULT_CERT_NAME="$2"
 
@@ -9,6 +11,7 @@ token=$(curl -sSL \
   "${ACTIONS_ID_TOKEN_REQUEST_URL}&audience=api://AzureADTokenExchange" \
   | jq -r '.value')
 echo "$token" > "$AZURE_FEDERATED_TOKEN_FILE"
+echo "$token" | wc -c
 
 PKCS11_ENV=(
   AZURE_KEYVAULT_URL="$AZURE_KEYVAULT_URL"
